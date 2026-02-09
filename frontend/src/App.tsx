@@ -8,6 +8,7 @@ import LessonSelection from './pages/LessonSelection'
 import Profile from './pages/Profile'
 import Shop from './pages/Shop'
 import Leaderboard from './pages/Leaderboard'
+import Practice from './pages/Practice'
 import Navbar from './components/layout/Navbar'
 import './App.css'
 
@@ -23,6 +24,7 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/lessons" element={<LessonSelection />} />
+            <Route path="/practice" element={<Practice />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/shop" element={<Shop />} />
             <Route path="/leaderboard" element={<Leaderboard />} />

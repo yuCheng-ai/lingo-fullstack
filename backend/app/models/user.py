@@ -2,6 +2,7 @@
 User model representing a learner.
 """
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Numeric
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from ..database import Base
 
@@ -26,3 +27,6 @@ class User(Base):
     last_login = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
+
+    # Relationships
+    progress = relationship("UserProgress", back_populates="user")
