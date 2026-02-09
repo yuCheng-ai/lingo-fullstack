@@ -10,6 +10,7 @@ import Profile from './pages/Profile'
 import Shop from './pages/Shop'
 import Leaderboard from './pages/Leaderboard'
 import Practice from './pages/Practice'
+import MistakeNotebook from './pages/MistakeNotebook'
 import Navbar from './components/layout/Navbar'
 import './App.css'
 
@@ -29,6 +30,7 @@ function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/shop" element={<Shop />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/mistakes" element={<MistakeNotebook />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>

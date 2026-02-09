@@ -9,7 +9,7 @@ from .database import engine, Base
 from .api import auth, users, lessons, progress, shop
 
 # Import models so that Base.metadata is aware of them
-from .models import level, lesson, user_progress
+from .models import level, lesson, user_progress, wrong_question
 
 # Create database tables (for development, use Alembic in production)
 Base.metadata.create_all(bind=engine)
