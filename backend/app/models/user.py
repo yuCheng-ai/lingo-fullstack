@@ -22,6 +22,13 @@ class User(Base):
     max_hearts = Column(Integer, default=5)      # maximum hearts possible
     coins = Column(Integer, default=0)
     
+    # Boosts
+    boost_expires_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Streak
+    streak_count = Column(Integer, default=0)
+    last_lesson_at = Column(DateTime(timezone=True), nullable=True)
+    
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
@@ -30,3 +37,4 @@ class User(Base):
 
     # Relationships
     progress = relationship("UserProgress", back_populates="user")
+    wrong_questions = relationship("WrongQuestion", back_populates="user")

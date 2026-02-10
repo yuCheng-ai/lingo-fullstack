@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -10,8 +11,9 @@ router = APIRouter()
 
 
 class UserUpdate(BaseModel):
-    username: str | None = None
-    email: str | None = None
+    username: Optional[str] = None
+    email: Optional[str] = None
+    avatar_url: Optional[str] = None
 
 
 @router.get("/me")
@@ -29,7 +31,26 @@ def read_user_profile(
         "coins": current_user.coins,
         "hearts": current_user.hearts,
         "max_hearts": current_user.max_hearts,
+        "avatar_url": current_user.avatar_url,
+        "boost_expires_at": current_user.boost_expires_at,
+        "streak_count": current_user.streak_count,
     }
+
+
+@router.get("/leaderboard")
+def get_leaderboard(db: Session = Depends(get_db)):
+    """Return top users by experience."""
+    top_users = db.query(User).order_by(User.experience.desc()).limit(10).all()
+    return [
+        {
+            "id": u.id,
+            "username": u.username,
+            "experience": u.experience,
+            "level": u.level,
+            "avatar_url": u.avatar_url
+        }
+        for u in top_users
+    ]
 
 
 @router.put("/me")
@@ -55,6 +76,9 @@ def update_user_profile(
             )
         current_user.email = update_data.email
 
+    if update_data.avatar_url is not None:
+        current_user.avatar_url = update_data.avatar_url
+
     db.commit()
     db.refresh(current_user)
 
@@ -67,4 +91,7 @@ def update_user_profile(
         "coins": current_user.coins,
         "hearts": current_user.hearts,
         "max_hearts": current_user.max_hearts,
+        "avatar_url": current_user.avatar_url,
+        "boost_expires_at": current_user.boost_expires_at,
+        "streak_count": current_user.streak_count,
     }

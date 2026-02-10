@@ -13,6 +13,9 @@ interface User {
   coins: number;
   hearts: number;
   max_hearts: number;
+  avatar_url?: string;
+  boost_expires_at?: string;
+  streak_count: number;
 }
 
 interface AuthContextType {
@@ -20,6 +23,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<User>;
   register: (email: string, username: string, password: string) => Promise<User>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   loading: boolean;
 }
 
@@ -41,7 +45,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const token = localStorage.getItem('token');
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      axios.get('/api/auth/me')
+      axios.get('/api/users/me')
         .then(res => {
           setUser(res.data);
         })
@@ -86,11 +90,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser(null);
   };
 
+  const refreshUser = async () => {
+    try {
+      const res = await axios.get('/api/users/me');
+      setUser(res.data);
+    } catch (err) {
+      console.error('Failed to refresh user', err);
+    }
+  };
+
   const value = {
     user,
     login,
     register,
     logout,
+    refreshUser,
     loading,
   };
 

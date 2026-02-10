@@ -20,10 +20,12 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+    # bcrypt has a 72-byte limit, truncate manually to avoid error
+    return pwd_context.verify(plain_password[:72], hashed_password)
 
 def get_password_hash(password):
-    return pwd_context.hash(password)
+    # bcrypt has a 72-byte limit, truncate manually to avoid error
+    return pwd_context.hash(password[:72])
 
 def authenticate_user(db: Session, email: str, password: str):
     user = db.query(User).filter(User.email == email).first()
@@ -74,38 +76,44 @@ def login(
         }
     }
 
+from pydantic import BaseModel, EmailStr
+
+class UserRegister(BaseModel):
+    email: EmailStr
+    username: str
+    password: str
+
 @router.post("/register")
 def register(
-    email: str,
-    username: str,
-    password: str,
+    user_data: UserRegister,
     db: Session = Depends(get_db)
 ):
     # Check if user exists
     existing = db.query(User).filter(
-        (User.email == email) | (User.username == username)
+        (User.email == user_data.email) | (User.username == user_data.username)
     ).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email or username already registered",
         )
-    hashed_password = get_password_hash(password)
+    hashed_password = get_password_hash(user_data.password)
     db_user = User(
-        email=email,
-        username=username,
+        email=user_data.email,
+        username=user_data.username,
         hashed_password=hashed_password,
         level=1,
         experience=0,
         hearts=5,
-        max_hearts=5,
-        coins=100  # starting bonus
     )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-    # create token for immediate login
-    access_token = create_access_token(data={"sub": db_user.email})
+
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": db_user.email}, expires_delta=access_token_expires
+    )
     return {
         "access_token": access_token,
         "token_type": "bearer",
@@ -150,4 +158,7 @@ def read_users_me(
         "coins": user.coins,
         "hearts": user.hearts,
         "max_hearts": user.max_hearts,
+        "avatar_url": user.avatar_url,
+        "boost_expires_at": user.boost_expires_at,
+        "streak_count": user.streak_count,
     }

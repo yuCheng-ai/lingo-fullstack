@@ -1,14 +1,17 @@
 """
 Progress tracking: submit lesson results, update user stats.
 """
+import json
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
+from datetime import datetime, timezone, timedelta
 
 from ..database import get_db
 from ..models.user import User
 from ..models.lesson import Lesson
 from ..models.user_progress import UserProgress
+from ..models.wrong_question import WrongQuestion
 from ..api.auth import oauth2_scheme
 from jose import JWTError, jwt
 from ..config import settings
@@ -36,21 +39,67 @@ def get_current_user(
         raise credentials_exception
     return user
 
+from pydantic import BaseModel
+from typing import List, Optional
+
+class ProgressSubmit(BaseModel):
+    lesson_id: int
+    score: int
+    hearts_lost: int = 0
+    wrong_question_ids: Optional[List[int]] = None
+
 @router.post("/submit")
 def submit_lesson_result(
-    lesson_id: int,
-    score: int,
-    hearts_lost: int = 0,
+    data: ProgressSubmit,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Record a lesson attempt and update user stats."""
+    lesson_id = data.lesson_id
+    score = data.score
+    hearts_lost = data.hearts_lost
+    wrong_question_ids = data.wrong_question_ids or []
+    
     # 1. Find lesson
     lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
     
-    # 2. Create or update progress
+    # Parse lesson content to get question details
+    lesson_content = []
+    try:
+        lesson_content = json.loads(lesson.content)
+    except:
+        pass
+    
+    # 2. Save wrong questions
+    for qid in wrong_question_ids:
+        # Find the question in lesson content
+        question_data = None
+        for q in lesson_content:
+            if q.get("id") == qid:
+                question_data = q
+                break
+        if question_data:
+            # Check if this wrong question already exists for the user
+            existing = db.query(WrongQuestion).filter(
+                WrongQuestion.user_id == current_user.id,
+                WrongQuestion.lesson_id == lesson_id,
+                WrongQuestion.question_id == qid
+            ).first()
+            if not existing:
+                wrong_q = WrongQuestion(
+                    user_id=current_user.id,
+                    lesson_id=lesson_id,
+                    question_id=qid,
+                    question_text=question_data.get("question", ""),
+                    correct_answer=question_data.get("answer", ""),
+                    user_answer="",  # We don't track the specific wrong answer in this implementation
+                    mastered=False
+                )
+                db.add(wrong_q)
+    
+    # 3. Create or update progress
     progress = db.query(UserProgress).filter(
         and_(UserProgress.user_id == current_user.id,
              UserProgress.lesson_id == lesson_id)
@@ -70,9 +119,14 @@ def submit_lesson_result(
         if score >= 80:   # threshold for completion
             progress.completed = True
     
-    # 3. Update user stats
+    # 4. Update user stats
     # Add experience (score/10)
     exp_gained = max(1, score // 10)
+    
+    # Check for active XP boost
+    if current_user.boost_expires_at and current_user.boost_expires_at > datetime.now(timezone.utc):
+        exp_gained *= 2
+        
     current_user.experience += exp_gained
     # Level up if enough experience (simple formula)
     needed = current_user.level * 100
@@ -88,6 +142,23 @@ def submit_lesson_result(
     # Add coins (score/5)
     coin_gained = score // 5
     current_user.coins += coin_gained
+    
+    # 5. Update streak
+    now = datetime.now(timezone.utc)
+    if current_user.last_lesson_at:
+        last_date = current_user.last_lesson_at.date()
+        today = now.date()
+        yesterday = today - timedelta(days=1)
+        
+        if last_date == yesterday:
+            current_user.streak_count += 1
+        elif last_date < yesterday:
+            current_user.streak_count = 1
+        # if last_date == today, do nothing (streak already counted for today)
+    else:
+        current_user.streak_count = 1
+        
+    current_user.last_lesson_at = now
     
     db.commit()
     db.refresh(current_user)

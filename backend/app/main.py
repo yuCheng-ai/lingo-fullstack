@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .database import engine, Base
-from .api import auth, users, lessons, progress, shop
+from .api import auth, users, lessons, progress, shop, mistakes
 
 # Import models so that Base.metadata is aware of them
 from .models import level, lesson, user_progress, wrong_question
@@ -35,6 +35,7 @@ app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(lessons.router, prefix="/api/lessons", tags=["lessons"])
 app.include_router(progress.router, prefix="/api/progress", tags=["progress"])
 app.include_router(shop.router, prefix="/api/shop", tags=["shop"])
+app.include_router(mistakes.router, prefix="/api/mistakes", tags=["mistakes"])
 
 @app.get("/")
 async def root():

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import List
+from datetime import datetime, timedelta, timezone
 
 from app.database import get_db
 from app.models.user import User
@@ -61,8 +62,8 @@ def buy_item(
     elif item["type"] == "coins":
         current_user.coins += 100  # grant 100 coins (net effect: -price +100)
     elif item["type"] == "boost":
-        # Placeholder for any boost logic – you can extend this later
-        pass
+        # Double XP for 30 minutes
+        current_user.boost_expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
 
     db.commit()
     db.refresh(current_user)
